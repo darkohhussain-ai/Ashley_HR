@@ -10,16 +10,18 @@ interface OvertimeProps {
   currentMonth: string;
   config: AppConfig;
   adminUnlock: boolean;
-  readOnly?: boolean;
+  userRole: 'admin' | 'guest';
 }
 
-export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMonth, config, adminUnlock, readOnly = false }) => {
+export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMonth, config, adminUnlock, userRole }) => {
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [form, setForm] = useState({ hours: '', note: '' });
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [isDayLocked, setIsDayLocked] = useState(false);
+
+  const isAdmin = userRole === 'admin';
 
   // Fetch Monthly Records
   useEffect(() => {
@@ -56,7 +58,6 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
   }, [records]);
 
   const handleSubmit = async () => {
-    if (readOnly) return;
     if (!selectedEmpId || !form.hours) return alert('زانیاری تەواو نییە');
     const emp = employees.find(e => e.id === selectedEmpId);
     if (!emp) return;
@@ -73,7 +74,6 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
   };
 
   const lockDay = async () => {
-    if (readOnly) return;
     if (confirm('ئایا دڵنیایت لە قفڵکردنی ئەم ڕۆژە؟ پاشان ناتوانیت دەستکاری بکەیت.')) {
       await setDoc(doc(db, 'locked_days', selectedDate), { locked: true });
       setIsDayLocked(true);
@@ -86,7 +86,7 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
     setSelectedDate(d.toISOString().split('T')[0]);
   };
 
-  const canEdit = (!isDayLocked || adminUnlock) && !readOnly;
+  const canEdit = (!isDayLocked || adminUnlock) && isAdmin;
 
   return (
     <div className="space-y-6">
@@ -135,7 +135,7 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
           <Card className="h-fit">
             <div className="font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-200 dark:border-dark-border pb-2 flex justify-between items-center">
               <span>زیادکردن - {selectedDate}</span>
-              {!canEdit && !readOnly && (
+              {isDayLocked && (
                 <span className="text-red-500 text-xs flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
                   <Icon name="lock" weight="fill" /> قفڵە
                 </span>
@@ -161,7 +161,7 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
                 </div>
                 <Button onClick={handleSubmit} className="w-full">زیادکردن</Button>
                 
-                {!isDayLocked && !readOnly && (
+                {isAdmin && !isDayLocked && (
                   <button 
                     onClick={lockDay} 
                     className="w-full mt-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 transition shadow-md text-sm"
@@ -172,14 +172,14 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-slate-800 rounded-xl">
-                {readOnly ? (
-                  <span>تەنها بۆ بینینە (Viewer)</span>
-                ) : (
-                  <>
-                    <Icon name="lock-key" size={32} className="mx-auto mb-2 opacity-50" />
-                    ئەم ڕۆژە قفڵ کراوە
-                  </>
-                )}
+                 {!isAdmin ? (
+                    <span>تەنها بەڕێوەبەر دەتوانێت زیاد بکات</span>
+                 ) : (
+                    <>
+                       <Icon name="lock-key" size={32} className="mx-auto mb-2 opacity-50" />
+                       ئەم ڕۆژە قفڵ کراوە
+                    </>
+                 )}
               </div>
             )}
           </Card>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, getDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { db } from './firebaseService';
 import { AppConfig, DEFAULTS, Employee, User } from './types';
 import { Icon } from './components/Icon';
+import { Select } from './components/UI';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -11,13 +12,8 @@ import { EmployeeProfile } from './pages/EmployeeProfile';
 import { OvertimeSection } from './pages/Overtime';
 import { InputPage } from './pages/Inputs';
 import { SettingsPage } from './pages/Settings';
-import { LoginPage } from './pages/Login';
 
 function App() {
-  // Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  // App State
   const [page, setPage] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -26,6 +22,12 @@ function App() {
   const [adminUnlock, setAdminUnlock] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') !== 'light');
   
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '', role: 'admin' });
+  const [loginError, setLoginError] = useState('');
+
   const [config, setConfig] = useState<AppConfig>({
     appName: 'سیستەمی بەڕێوەبردن',
     logo: '',
@@ -78,11 +80,12 @@ function App() {
       }
 
       // Load Employees
-      const q = query(collection(db, 'employees'), orderBy('order'));
+      // Request: Sort alphabetically (Arabic)
+      const q = query(collection(db, 'employees'));
       onSnapshot(q, (snap) => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Employee));
-        // Sort explicitly if order is missing
-        list.sort((a, b) => (a.order || 0) - (b.order || 0));
+        // Sort by name using localeCompare for Arabic support
+        list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
         setEmployees(list);
         setLoading(false);
       });
@@ -90,23 +93,53 @@ function App() {
     init();
   }, []);
 
-  // --- Auth Checks ---
-  // Simple session persistence using localStorage for this demo
-  useEffect(() => {
-    const storedUser = localStorage.getItem('ashley_user');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    }
-  }, []);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    
+    try {
+      // Check Database
+      const q = query(collection(db, 'users'), where('username', '==', loginForm.username));
+      const querySnapshot = await getDocs(q);
+      
+      let user: User | null = null;
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('ashley_user', JSON.stringify(user));
+      if (!querySnapshot.empty) {
+        // User exists in DB
+        const userData = querySnapshot.docs[0].data() as User;
+        if (userData.password === loginForm.password) {
+          user = { ...userData, id: querySnapshot.docs[0].id };
+        }
+      } 
+      
+      // Fallback: Master Admin
+      if (!user && loginForm.username === 'Darko' && loginForm.password === '123456') {
+        user = { id: 'master', username: 'Darko', password: '', role: 'admin', createdAt: Date.now() };
+      }
+
+      if (user) {
+        // Strict Role Check based on Login Form selection
+        if (user.role !== loginForm.role) {
+          setLoginError(`تکایە دڵنیابەرەوە، ڕۆڵی ئەم بەکارهێنەرە "${user.role === 'admin' ? 'بەڕێوەبەر' : 'میوان'}"ـە`);
+          return;
+        }
+
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+        setLoginError('');
+      } else {
+        setLoginError('ناوەکە یان وشەی نهێنی هەڵەیە');
+      }
+    } catch (error) {
+      console.error("Login error", error);
+      setLoginError('هەڵەیەک ڕوویدا لە پەیوەندی');
+    }
   };
 
   const handleLogout = () => {
+    setIsAuthenticated(false);
     setCurrentUser(null);
-    localStorage.removeItem('ashley_user');
+    setLoginForm({ username: '', password: '', role: 'admin' });
     setPage('dashboard');
   };
 
@@ -119,9 +152,88 @@ function App() {
     );
   }
 
-  // SHOW LOGIN IF NO USER
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} appName={config.appName} logo={config.logo} />;
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-dark-bg flex items-center justify-center p-4 transition-colors duration-300">
+        <div className="max-w-md w-full bg-white dark:bg-dark-surface rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-dark-border animate-fade-in">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-2xl mx-auto mb-4 flex items-center justify-center text-[var(--brand-color)] shadow-inner">
+               {config.logo ? <img src={config.logo} className="w-full h-full object-contain p-2" alt="Logo" /> : <Icon name="lock-key" size={40} weight="duotone" />}
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{config.appName}</h1>
+            <p className="text-gray-500 text-sm">تکایە بچۆ ژوورەوە بۆ بەکارهێنانی سیستەم</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">ناوەکە</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={loginForm.username}
+                  onChange={e => setLoginForm({...loginForm, username: e.target.value})}
+                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-dark-border rounded-xl pl-4 pr-10 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)] transition"
+                  placeholder="ناوی بەکارهێنەر"
+                />
+                <span className="absolute right-3 top-3.5 text-gray-400">
+                  <Icon name="user" size={20} />
+                </span>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">وشەی نهێنی</label>
+              <div className="relative">
+                <input
+                  type="password"
+                  dir="ltr"
+                  value={loginForm.password}
+                  onChange={e => setLoginForm({...loginForm, password: e.target.value})}
+                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-dark-border rounded-xl pl-4 pr-10 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)] transition"
+                  placeholder="••••••"
+                />
+                <span className="absolute right-3 top-3.5 text-gray-400">
+                  <Icon name="key" size={20} />
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">جۆری هەژمار</label>
+              <Select value={loginForm.role} onChange={e => setLoginForm({...loginForm, role: e.target.value})}>
+                <option value="admin">بەڕێوەبەر (Admin)</option>
+                <option value="guest">میوان (Viewer)</option>
+              </Select>
+            </div>
+
+            {loginError && (
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-500 p-3 rounded-xl text-sm font-bold text-center flex items-center justify-center gap-2">
+                <Icon name="warning-circle" weight="fill" />
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-[var(--brand-color)] text-white font-bold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-orange-500/20 mt-4 flex items-center justify-center gap-2"
+            >
+              <Icon name="sign-in" weight="bold" />
+              چوونە ژوورەوە
+            </button>
+          </form>
+          
+          <div className="mt-8 text-center">
+             <button 
+                onClick={() => setIsDarkMode(!isDarkMode)} 
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+             >
+                {isDarkMode ? <Icon name="sun" size={24} /> : <Icon name="moon" size={24} />}
+             </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const getTitle = () => {
@@ -151,6 +263,8 @@ function App() {
     </button>
   );
 
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Print Header */}
@@ -173,9 +287,7 @@ function App() {
           </div>
           <div className="overflow-hidden">
              <span className="font-bold text-gray-900 dark:text-white block truncate">{config.appName}</span>
-             <span className="text-[10px] bg-gray-200 text-gray-600 dark:bg-slate-700 dark:text-gray-300 px-1.5 py-0.5 rounded inline-block">
-               {currentUser.role === 'admin' ? 'Admin' : 'Guest'}
-             </span>
+             <span className="text-xs text-gray-500 block">Version 3.0</span>
           </div>
         </div>
         
@@ -191,10 +303,19 @@ function App() {
           <SidebarItem id="settings" icon="gear" label={config.labels.nav_settings} />
         </nav>
 
-        <div className="p-4 border-t border-gray-200 dark:border-dark-border">
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-xl transition">
-            <Icon name="sign-out" />
-            <span>چوونەدەرەوە</span>
+        {/* User Info & Logout */}
+        <div className="p-4 border-t border-gray-200 dark:border-dark-border/30">
+          <div className="mb-4 px-2 flex items-center gap-2 text-sm text-gray-500">
+             <Icon name="user-circle" /> 
+             <span className="font-bold">{currentUser?.username}</span>
+             <span className="text-xs bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{currentUser?.role === 'admin' ? 'بەڕێوەبەر' : 'میوان'}</span>
+          </div>
+          <button 
+            onClick={handleLogout} 
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors duration-200"
+          >
+            <Icon name="sign-out" size={20} />
+            <span className="font-bold text-sm">چوونە دەرەوە</span>
           </button>
         </div>
       </aside>
@@ -217,7 +338,7 @@ function App() {
                 onClick={() => window.print()} 
                 className="bg-white text-gray-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 shadow-sm border border-gray-200"
               >
-                <Icon name="printer" />
+                <Icon name="printer" /> {config.labels.btn_print}
              </button>
            </div>
         </header>
@@ -228,7 +349,7 @@ function App() {
             employees={employees} 
             labels={config.labels} 
             onSelect={(emp) => { setSelectedEmployee(emp); setPage('employee-profile'); }} 
-            readOnly={currentUser.role === 'guest'}
+            userRole={currentUser?.role || 'guest'}
           />
         )}
         {page === 'employee-profile' && selectedEmployee && (
@@ -239,15 +360,15 @@ function App() {
             onBack={() => setPage('employees')} 
           />
         )}
-        {page === 'settings' && (
+        {page === 'settings' && currentUser && (
           <SettingsPage 
-            currentUser={currentUser}
             config={config} 
             setConfig={setConfig} 
             adminUnlock={adminUnlock} 
             setAdminUnlock={setAdminUnlock} 
             isDarkMode={isDarkMode} 
-            setIsDarkMode={setIsDarkMode} 
+            setIsDarkMode={setIsDarkMode}
+            currentUser={currentUser}
           />
         )}
         {page === 'overtime' && (
@@ -256,7 +377,7 @@ function App() {
             currentMonth={currentMonth} 
             config={config} 
             adminUnlock={adminUnlock} 
-            readOnly={currentUser.role === 'guest'}
+            userRole={currentUser?.role || 'guest'}
           />
         )}
         {(['expenses', 'loads', 'deductions'] as const).includes(page as any) && (
@@ -266,7 +387,7 @@ function App() {
             currentMonth={currentMonth} 
             config={config} 
             title={getTitle()} 
-            readOnly={currentUser.role === 'guest'}
+            userRole={currentUser?.role || 'guest'}
           />
         )}
       </main>

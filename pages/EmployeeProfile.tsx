@@ -64,14 +64,19 @@ export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex justify-between items-start border-b border-gray-200 dark:border-dark-border pb-4">
-        <div>
-          <button onClick={onBack} className="no-print text-sm text-gray-500 hover:text-[var(--brand-color)] mb-2 flex items-center gap-1 transition">
-            <Icon name="arrow-right" /> {config.labels.btn_back}
-          </button>
-          <h1 className="text-2xl font-bold text-[var(--brand-color)]">{employee.name}</h1>
-          <div className="text-sm text-gray-500 mt-1 flex gap-4">
-             <span>{employee.startDate || '-'}</span>
-             <span>{employee.notes}</span>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden flex items-center justify-center no-print">
+              {employee.photo ? <img src={employee.photo} alt={employee.name} className="w-full h-full object-cover" /> : <Icon name="user" size={32} className="text-gray-400" />}
+          </div>
+          <div>
+            <button onClick={onBack} className="no-print text-sm text-gray-500 hover:text-[var(--brand-color)] mb-2 flex items-center gap-1 transition">
+              <Icon name="arrow-right" /> {config.labels.btn_back}
+            </button>
+            <h1 className="text-2xl font-bold text-[var(--brand-color)]">{employee.name}</h1>
+            <div className="text-sm text-gray-500 mt-1 flex gap-4">
+               <span>{employee.startDate || '-'}</span>
+               <span>{employee.notes}</span>
+            </div>
           </div>
         </div>
         <Button variant="secondary" onClick={() => window.print()} className="no-print">
@@ -81,7 +86,10 @@ export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth
 
       {/* Print View Section */}
       <div className="print-only">
-        <h3 className="hidden print:block text-center text-xl font-bold mb-4">ڕاپۆرتی مانگی {currentMonth} - {employee.name}</h3>
+        <div className="flex items-center gap-4 mb-6">
+           {employee.photo && <img src={employee.photo} className="w-20 h-20 rounded-full object-cover border border-gray-300" />}
+           <h3 className="hidden print:block text-center text-xl font-bold">ڕاپۆرتی مانگی {currentMonth} - {employee.name}</h3>
+        </div>
         
         <div className="grid grid-cols-2 gap-4 mb-6">
            <SummaryBox label="خەرجی" value={totals.expenses} />

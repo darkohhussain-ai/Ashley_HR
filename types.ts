@@ -1,6 +1,7 @@
 export interface Employee {
   id: string;
   name: string;
+  photo?: string; // Base64 string for profile picture
   startDate: string;
   notes: string;
   order: number;
@@ -27,6 +28,14 @@ export interface OvertimeRecord {
   createdAt: number;
 }
 
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'guest';
+  createdAt: number;
+}
+
 export interface LockedDay {
   locked: boolean;
 }
@@ -34,16 +43,6 @@ export interface LockedDay {
 export interface AppColors {
   brand: string;
   sidebar: string;
-}
-
-export type UserRole = 'admin' | 'guest';
-
-export interface User {
-  id: string;
-  username: string;
-  password: string; // In a real production app, never store plain text. For this demo, we store as is.
-  role: UserRole;
-  createdAt: number;
 }
 
 export interface AppLabels {
@@ -98,7 +97,7 @@ export const DEFAULTS = {
     th_actions: 'کردارەکان',
     btn_add: 'زیادکردن',
     btn_save: 'تۆمارکردن',
-    btn_print: 'چاپکردن',
+    btn_print: 'چاپ کردن',
     btn_back: 'گەڕانەوە'
   }
 };

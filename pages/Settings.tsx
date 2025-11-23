@@ -1,70 +1,77 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { doc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, onSnapshot, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebaseService';
-import { AppConfig, DEFAULTS, User, UserRole } from '../types';
+import { AppConfig, DEFAULTS, User } from '../types';
 import { Card, Button, Input, Select } from '../components/UI';
 import { Icon } from '../components/Icon';
 
 interface SettingsProps {
-  currentUser: User;
   config: AppConfig;
   setConfig: (c: AppConfig) => void;
   adminUnlock: boolean;
   setAdminUnlock: (v: boolean) => void;
   isDarkMode: boolean;
   setIsDarkMode: (v: boolean) => void;
+  currentUser: User;
 }
 
-export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, setConfig, adminUnlock, setAdminUnlock, isDarkMode, setIsDarkMode }) => {
+export const SettingsPage: React.FC<SettingsProps> = ({ config, setConfig, adminUnlock, setAdminUnlock, isDarkMode, setIsDarkMode, currentUser }) => {
   const [local, setLocal] = useState(config);
-  const [tab, setTab] = useState<'profile' | 'general' | 'design' | 'users'>('profile');
+  const [tab, setTab] = useState<'profile' | 'general' | 'design' | 'accounts'>(currentUser.role === 'admin' ? 'general' : 'profile');
   const logoRef = useRef<HTMLInputElement>(null);
   const fontRef = useRef<HTMLInputElement>(null);
 
-  // Users Management State
-  const [usersList, setUsersList] = useState<User[]>([]);
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'guest' as UserRole });
-
+  // Accounts State
+  const [users, setUsers] = useState<User[]>([]);
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'guest' });
+  
   // Profile State
-  const [profileData, setProfileData] = useState({ username: currentUser.username, password: currentUser.password });
+  const [profileForm, setProfileForm] = useState({ username: currentUser.username, password: currentUser.password });
+
+  const isAdmin = currentUser.role === 'admin';
 
   useEffect(() => {
-    if (tab === 'users' && currentUser.role === 'admin') {
-      fetchUsers();
+    if (isAdmin) {
+      const unsub = onSnapshot(collection(db, 'users'), (snap) => {
+        setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
+      });
+      return () => unsub();
     }
-  }, [tab, currentUser]);
+  }, [isAdmin]);
 
-  const fetchUsers = async () => {
-    const snap = await getDocs(collection(db, 'users'));
-    setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
-  };
-
-  const saveConfig = async () => {
+  const save = async () => {
     await setDoc(doc(db, 'settings', 'appConfig'), local, { merge: true });
     setConfig(local);
     alert('تۆمارکرا!');
   };
 
+  const updateProfile = async () => {
+    if (!profileForm.username || !profileForm.password) return alert('نابێت ناو یان وشەی نهێنی بەتاڵ بێت');
+    if (currentUser.id === 'master') {
+       alert('ناتوانیت هەژماری سەرەکی دەستکاری بکەیت');
+       return;
+    }
+    
+    await updateDoc(doc(db, 'users', currentUser.id), {
+       username: profileForm.username,
+       password: profileForm.password
+    });
+    alert('زانیارییەکان نوێکرانەوە. تکایە جارێکی تر بچۆ ژوورەوە');
+  };
+
   const addUser = async () => {
-    if(!newUser.username || !newUser.password) return;
-    await addDoc(collection(db, 'users'), { ...newUser, createdAt: Date.now() });
+    if (!newUser.username || !newUser.password) return alert('پڕکردنەوەی هەموو خانەکان پێویستە');
+    await addDoc(collection(db, 'users'), {
+      ...newUser,
+      createdAt: Date.now()
+    });
     setNewUser({ username: '', password: '', role: 'guest' });
-    fetchUsers();
   };
 
   const removeUser = async (id: string) => {
-    if (confirm('دڵنیایت؟')) {
+    if (confirm('ئایا دڵنیایت لە سڕینەوەی ئەم بەکارهێنەرە؟')) {
       await deleteDoc(doc(db, 'users', id));
-      fetchUsers();
     }
-  };
-
-  const updateProfile = async () => {
-    await updateDoc(doc(db, 'users', currentUser.id), {
-      username: profileData.username,
-      password: profileData.password
-    });
-    alert('زانیارییەکان نوێکرانەوە! تکایە دووبارە بچۆرە ژوورەوە بۆ بینینی گۆڕانکارییەکان.');
   };
 
   const uploadLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,30 +92,41 @@ export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, set
     }
   };
 
-  const TabButton = ({ id, label }: { id: typeof tab, label: string }) => (
-    <button 
-      onClick={() => setTab(id)} 
-      className={`pb-2 font-bold transition ${tab === id ? 'text-[var(--brand-color)] border-b-2 border-[var(--brand-color)]' : 'text-gray-500'}`}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <Card className="max-w-4xl mx-auto">
       {/* Tabs */}
-      <div className="flex gap-6 mb-6 border-b border-gray-200 dark:border-dark-border pb-2 overflow-x-auto">
-        <TabButton id="profile" label="پرۆفایلی من" />
-        {currentUser.role === 'admin' && (
+      <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-dark-border pb-2 overflow-x-auto">
+        <button 
+          onClick={() => setTab('profile')} 
+          className={`pb-2 font-bold transition whitespace-nowrap ${tab === 'profile' ? 'text-[var(--brand-color)] border-b-2 border-[var(--brand-color)]' : 'text-gray-500'}`}
+        >
+          پرۆفایل
+        </button>
+        {isAdmin && (
           <>
-            <TabButton id="general" label="گشتی" />
-            <TabButton id="design" label="دیزاین" />
-            <TabButton id="users" label="بەڕێوەبردنی ئەندامان" />
+            <button 
+              onClick={() => setTab('general')} 
+              className={`pb-2 font-bold transition whitespace-nowrap ${tab === 'general' ? 'text-[var(--brand-color)] border-b-2 border-[var(--brand-color)]' : 'text-gray-500'}`}
+            >
+              گشتی
+            </button>
+            <button 
+              onClick={() => setTab('design')} 
+              className={`pb-2 font-bold transition whitespace-nowrap ${tab === 'design' ? 'text-[var(--brand-color)] border-b-2 border-[var(--brand-color)]' : 'text-gray-500'}`}
+            >
+              دیزاین
+            </button>
+            <button 
+              onClick={() => setTab('accounts')} 
+              className={`pb-2 font-bold transition whitespace-nowrap ${tab === 'accounts' ? 'text-[var(--brand-color)] border-b-2 border-[var(--brand-color)]' : 'text-gray-500'}`}
+            >
+              هەژمارەکان
+            </button>
           </>
         )}
       </div>
 
-      {/* Common: Theme Toggle */}
+      {/* Theme Toggle */}
       <div className="mb-6 flex justify-between items-center bg-gray-50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-dark-border">
         <span className="font-bold text-gray-900 dark:text-white">دۆخی ڕوکار (Theme)</span>
         <Button variant="secondary" onClick={() => setIsDarkMode(!isDarkMode)}>
@@ -116,8 +134,8 @@ export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, set
         </Button>
       </div>
 
-      {/* Admin Unlock (Only for Admin) */}
-      {currentUser.role === 'admin' && (
+      {/* Admin Unlock */}
+      {isAdmin && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 p-4 rounded-xl flex justify-between items-center">
           <div>
             <h4 className="text-red-500 dark:text-red-400 font-bold">کردنەوەی قفڵی ئەرشیف</h4>
@@ -132,68 +150,29 @@ export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, set
         </div>
       )}
 
-      {/* --- CONTENT BY TAB --- */}
-
       {tab === 'profile' && (
-        <div className="space-y-4 max-w-md">
-           <h3 className="font-bold text-lg mb-4">گۆڕینی زانیاری کەسی</h3>
-           <div>
-             <label className="text-xs text-gray-500 block mb-1">ناوی بەکارهێنەر</label>
-             <Input value={profileData.username} onChange={e => setProfileData({...profileData, username: e.target.value})} />
-           </div>
-           <div>
-             <label className="text-xs text-gray-500 block mb-1">وشەی نهێنی نوێ</label>
-             <Input type="password" value={profileData.password} onChange={e => setProfileData({...profileData, password: e.target.value})} />
-           </div>
-           <Button onClick={updateProfile}>نوێکردنەوە</Button>
-        </div>
+         <div className="space-y-6 animate-fade-in">
+            <h4 className="font-bold mb-4 text-[var(--brand-color)]">زانیاری کەسی</h4>
+            <div className="max-w-md">
+               <div className="mb-4">
+                  <label className="text-xs text-gray-500 block mb-1">ناوی بەکارهێنەر</label>
+                  <Input value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} disabled={currentUser.id === 'master'} />
+               </div>
+               <div className="mb-6">
+                  <label className="text-xs text-gray-500 block mb-1">وشەی نهێنی</label>
+                  <Input value={profileForm.password} onChange={e => setProfileForm({...profileForm, password: e.target.value})} disabled={currentUser.id === 'master'} />
+               </div>
+               {currentUser.id !== 'master' && (
+                  <Button onClick={updateProfile}>نوێکردنەوە</Button>
+               )}
+               {currentUser.id === 'master' && (
+                  <p className="text-xs text-red-500 mt-2">ناتوانیت هەژماری سەرەکی لەم بەشە دەستکاری بکەیت</p>
+               )}
+            </div>
+         </div>
       )}
 
-      {tab === 'users' && currentUser.role === 'admin' && (
-        <div className="space-y-6">
-           <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
-             <h4 className="font-bold mb-3">زیادکردنی ئەندام</h4>
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-               <Input placeholder="ناو" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
-               <Input placeholder="وشەی نهێنی" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-               <Select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}>
-                 <option value="guest">Guest (Viewer)</option>
-                 <option value="admin">Admin</option>
-               </Select>
-               <Button onClick={addUser}><Icon name="plus"/> زیادکردن</Button>
-             </div>
-           </div>
-
-           <div className="border rounded-xl overflow-hidden">
-             <table className="w-full text-right bg-white dark:bg-dark-surface">
-               <thead className="bg-gray-100 dark:bg-slate-800 text-xs text-gray-500">
-                 <tr>
-                    <th className="p-3">ناو</th>
-                    <th className="p-3">ڕۆڵ (Rank)</th>
-                    <th className="p-3">وشەی نهێنی</th>
-                    <th className="p-3">کردار</th>
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                 {usersList.map(user => (
-                   <tr key={user.id}>
-                     <td className="p-3 font-bold">{user.username} {user.id === currentUser.id && '(تۆ)'}</td>
-                     <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>{user.role}</span></td>
-                     <td className="p-3 font-mono text-sm opacity-50">{user.password}</td>
-                     <td className="p-3">
-                       {user.id !== currentUser.id && (
-                         <button onClick={() => removeUser(user.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Icon name="trash"/></button>
-                       )}
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-        </div>
-      )}
-
-      {tab === 'general' && currentUser.role === 'admin' && (
+      {tab === 'general' && isAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -229,14 +208,15 @@ export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, set
               <label className="text-xs text-gray-500 block mb-1">نرخی بار (IQD)</label>
               <Input type="number" value={local.loadRate} onChange={e => setLocal({...local, loadRate: Number(e.target.value)})} />
             </div>
-            <div className="pt-4">
-                <Button onClick={saveConfig} className="w-full">{local.labels.btn_save}</Button>
-            </div>
+          </div>
+          
+          <div className="md:col-span-2">
+             <Button onClick={save} className="w-full mt-4">{local.labels.btn_save}</Button>
           </div>
         </div>
       )}
 
-      {tab === 'design' && currentUser.role === 'admin' && (
+      {tab === 'design' && isAdmin && (
         <div className="space-y-8 animate-fade-in">
           <div>
             <h4 className="font-bold mb-4 text-[var(--brand-color)]">ڕەنگەکان</h4>
@@ -276,7 +256,66 @@ export const SettingsPage: React.FC<SettingsProps> = ({ currentUser, config, set
               ))}
             </div>
           </div>
-          <Button onClick={saveConfig} className="w-full mt-4">{local.labels.btn_save}</Button>
+
+          <Button onClick={save} className="w-full mt-4">{local.labels.btn_save}</Button>
+        </div>
+      )}
+
+      {tab === 'accounts' && isAdmin && (
+        <div className="space-y-6 animate-fade-in">
+           <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-dark-border">
+              <h4 className="font-bold mb-4 text-[var(--brand-color)]">زیادکردنی بەکارهێنەر</h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                 <div>
+                    <label className="text-xs text-gray-500 mb-1 block">ناوی بەکارهێنەر</label>
+                    <Input value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} placeholder="User" />
+                 </div>
+                 <div>
+                    <label className="text-xs text-gray-500 mb-1 block">وشەی نهێنی</label>
+                    <Input value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Pass" type="text" />
+                 </div>
+                 <div>
+                    <label className="text-xs text-gray-500 mb-1 block">ڕۆڵ</label>
+                    <Select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as any})}>
+                       <option value="guest">میوان (Viewer)</option>
+                       <option value="admin">بەڕێوەبەر (Admin)</option>
+                    </Select>
+                 </div>
+                 <Button onClick={addUser} className="w-full"><Icon name="plus"/> زیادکردن</Button>
+              </div>
+           </div>
+
+           <div className="border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden">
+              <table className="w-full text-right">
+                 <thead className="bg-gray-100 dark:bg-slate-800 text-xs text-gray-500">
+                    <tr>
+                       <th className="p-3">ناو</th>
+                       <th className="p-3">ڕۆڵ</th>
+                       <th className="p-3"></th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                    {users.map(u => (
+                       <tr key={u.id}>
+                          <td className="p-3 font-bold text-gray-900 dark:text-white">{u.username}</td>
+                          <td className="p-3">
+                             <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-600'}`}>
+                                {u.role === 'admin' ? 'Admin' : 'Guest'}
+                             </span>
+                          </td>
+                          <td className="p-3 text-left">
+                             <button onClick={() => removeUser(u.id)} className="text-red-400 hover:text-red-600">
+                                <Icon name="trash" size={18} />
+                             </button>
+                          </td>
+                       </tr>
+                    ))}
+                    {users.length === 0 && (
+                       <tr><td colSpan={3} className="p-4 text-center text-gray-500">هیچ بەکارهێنەرێک نییە</td></tr>
+                    )}
+                 </tbody>
+              </table>
+           </div>
         </div>
       )}
     </Card>

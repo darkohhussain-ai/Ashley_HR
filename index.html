@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ashley System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: 'var(--brand-color)',
+              'brand-hover': 'var(--brand-hover)',
+              dark: {
+                bg: '#0f172a',
+                surface: '#1e293b',
+                border: '#334155'
+              }
+            },
+            fontFamily: {
+              sans: ['var(--app-font)', 'Noto Sans Arabic', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Cairo:wght@300;400;600;700&family=Noto+Sans+Arabic:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --app-font: 'Noto Sans Arabic', sans-serif;
+        --brand-color: #F97316;
+      }
+      
+      body {
+        font-family: var(--app-font);
+      }
+
+      /* Custom scrollbar for better aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #475569;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      @media print {
+        @page { size: A4; margin: 5mm; }
+        body { background-color: white !important; color: black !important; }
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        .glass-panel { border: none !important; shadow: none !important; background: white !important; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-100 text-gray-900 dark:bg-dark-bg dark:text-gray-100 transition-colors duration-300">
+    <div id="root"></div>
+  </body>
+</html>

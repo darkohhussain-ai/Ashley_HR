@@ -47,6 +47,10 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
 
   const dailyList = useMemo(() => records.filter(r => r.date === selectedDate), [records, selectedDate]);
 
+  // Calculate Daily Totals
+  const dailyTotalHours = useMemo(() => dailyList.reduce((a, b) => a + (Number(b.hours) || 0), 0), [dailyList]);
+  const dailyTotalPay = useMemo(() => dailyList.reduce((a, b) => a + (Number(b.pay) || 0), 0), [dailyList]);
+
   const monthlySummary = useMemo(() => {
     const summary: Record<string, { hours: number; pay: number }> = {};
     records.forEach(r => {
@@ -221,6 +225,15 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
                     </tr>
                   )}
                 </tbody>
+                <tfoot className="bg-gray-100 dark:bg-slate-800 font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-dark-border">
+                  <tr>
+                    <td className="p-4">کۆی گشتی</td>
+                    <td className="p-4">{dailyTotalHours}</td>
+                    <td className="p-4"></td>
+                    <td className="p-4 text-[var(--brand-color)] dir-ltr font-mono">{dailyTotalPay.toLocaleString()} IQD</td>
+                    <td className="p-4"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>

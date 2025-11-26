@@ -115,8 +115,8 @@ function App() {
         }
       } 
       
-      // Fallback: Master Admin
-      if (!user && loginForm.username === 'Darko' && loginForm.password === '123456') {
+      // Fallback: Master Admin (Accepts 'Darko' or 'darko')
+      if (!user && (loginForm.username === 'Darko' || loginForm.username === 'darko') && loginForm.password === '123456') {
         user = { id: 'master', username: 'Darko', password: '', role: 'admin', createdAt: Date.now() };
       }
 

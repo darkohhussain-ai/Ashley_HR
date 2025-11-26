@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebaseService';
 import { Employee, AppConfig } from '../types';
-import { Button } from '../components/UI';
+import { Button, Input } from '../components/UI';
 import { Icon } from '../components/Icon';
 
 interface ProfileProps {
@@ -10,11 +10,23 @@ interface ProfileProps {
   currentMonth: string;
   onBack: () => void;
   config: AppConfig;
+  userRole: 'admin' | 'guest';
 }
 
-export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth, onBack, config }) => {
+export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth, onBack, config, userRole }) => {
   const [data, setData] = useState({ expenses: [], overtime: [], loads: [], deductions: [] });
   const [loading, setLoading] = useState(true);
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState(employee);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdmin = userRole === 'admin';
+
+  useEffect(() => {
+     setEditForm(employee);
+  }, [employee]);
 
   useEffect(() => {
     setLoading(true);
@@ -42,6 +54,33 @@ export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth
     fetchProfile();
   }, [employee, currentMonth]);
 
+  const handleSave = async () => {
+     try {
+        await updateDoc(doc(db, 'employees', employee.id), {
+           name: editForm.name,
+           startDate: editForm.startDate,
+           notes: editForm.notes,
+           photo: editForm.photo
+        });
+        setIsEditing(false);
+        // Note: The parent App component listens to Firestore updates, so the UI will refresh automatically.
+     } catch (err) {
+        console.error("Error updating profile:", err);
+        alert("هەڵەیەک ڕوویدا لە تۆمارکردن");
+     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setEditForm(prev => ({ ...prev, photo: event.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const totals = {
     expenses: data.expenses.reduce((s, i: any) => s + (i.amount || 0), 0),
     overtime: data.overtime.reduce((s, i: any) => s + (i.pay || 0), 0),
@@ -64,19 +103,59 @@ export const EmployeeProfile: React.FC<ProfileProps> = ({ employee, currentMonth
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex justify-between items-start border-b border-gray-200 dark:border-dark-border pb-4">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden flex items-center justify-center no-print">
-              {employee.photo ? <img src={employee.photo} alt={employee.name} className="w-full h-full object-cover" /> : <Icon name="user" size={32} className="text-gray-400" />}
+        <div className="flex items-center gap-4 w-full">
+          {/* Photo */}
+          <div className="relative group">
+             <div 
+               className="w-16 h-16 rounded-full bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden flex items-center justify-center no-print"
+               onClick={() => isEditing && fileInputRef.current?.click()}
+               style={{ cursor: isEditing ? 'pointer' : 'default' }}
+             >
+                 {isEditing ? (
+                    editForm.photo ? <img src={editForm.photo} alt="Preview" className="w-full h-full object-cover" /> : <Icon name="camera" size={24} className="text-gray-400" />
+                 ) : (
+                    employee.photo ? <img src={employee.photo} alt={employee.name} className="w-full h-full object-cover" /> : <Icon name="user" size={32} className="text-gray-400" />
+                 )}
+             </div>
+             {isEditing && (
+                <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                   <Icon name="pencil" className="text-white" />
+                </div>
+             )}
+             <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} className="hidden" accept="image/*" />
           </div>
-          <div>
+
+          <div className="flex-1">
             <button onClick={onBack} className="no-print text-sm text-gray-500 hover:text-[var(--brand-color)] mb-2 flex items-center gap-1 transition">
               <Icon name="arrow-right" /> {config.labels.btn_back}
             </button>
-            <h1 className="text-2xl font-bold text-[var(--brand-color)]">{employee.name}</h1>
-            <div className="text-sm text-gray-500 mt-1 flex gap-4">
-               <span>{employee.startDate || '-'}</span>
-               <span>{employee.notes}</span>
-            </div>
+            
+            {isEditing ? (
+               <div className="space-y-2 max-w-md">
+                  <Input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="ناو" className="font-bold" />
+                  <div className="flex gap-2">
+                     <Input type="date" value={editForm.startDate} onChange={e => setEditForm({...editForm, startDate: e.target.value})} />
+                     <Input value={editForm.notes} onChange={e => setEditForm({...editForm, notes: e.target.value})} placeholder="تێبینی" />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                     <Button onClick={handleSave} variant="success" className="text-xs py-1"><Icon name="check"/> تۆمارکردن</Button>
+                     <Button onClick={() => setIsEditing(false)} variant="secondary" className="text-xs py-1"><Icon name="x"/> هەڵوەشاندنەوە</Button>
+                  </div>
+               </div>
+            ) : (
+               <>
+                  <h1 className="text-2xl font-bold text-[var(--brand-color)]">{employee.name}</h1>
+                  <div className="text-sm text-gray-500 mt-1 flex gap-4">
+                     <span>{employee.startDate || '-'}</span>
+                     <span>{employee.notes}</span>
+                  </div>
+                  {isAdmin && (
+                     <button onClick={() => setIsEditing(true)} className="no-print text-xs text-blue-500 hover:underline mt-1 flex items-center gap-1">
+                        <Icon name="pencil" /> دەستکاری زانیاری
+                     </button>
+                  )}
+               </>
+            )}
           </div>
         </div>
         <Button variant="secondary" onClick={() => window.print()} className="no-print">

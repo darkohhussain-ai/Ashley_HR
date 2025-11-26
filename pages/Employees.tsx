@@ -165,13 +165,16 @@ export const EmployeesList: React.FC<EmployeesProps> = ({ employees, onSelect, l
                       </button>
                     ) : (
                       <>
-                        {isAdmin && (
+                        {/* {isAdmin && (
                           <button onClick={() => startEdit(emp)} className="text-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-2 rounded-lg transition">
                             <Icon name="pencil-simple" size={20} />
                           </button>
-                        )}
-                        <button onClick={() => onSelect(emp)} className="text-gray-400 hover:text-[var(--brand-color)] hover:bg-gray-100 dark:hover:bg-slate-700 p-2 rounded-lg transition">
-                          <Icon name="eye" size={20} />
+                        )} */}
+                        <button 
+                           onClick={() => onSelect(emp)} 
+                           className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 px-3 py-1 rounded-lg transition flex items-center gap-2 border border-gray-200 dark:border-slate-600"
+                        >
+                          <Icon name="user-list" size={20} /> وردەکاری
                         </button>
                       </>
                     )}

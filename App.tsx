@@ -18,7 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [adminUnlock, setAdminUnlock] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') !== 'light');
   
@@ -38,6 +38,9 @@ function App() {
     labels: DEFAULTS.labels,
     colors: DEFAULTS.colors
   });
+
+  // Derived state
+  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId) || null;
 
   // Theme & Fonts
   useEffect(() => {
@@ -348,7 +351,7 @@ function App() {
           <EmployeesList 
             employees={employees} 
             labels={config.labels} 
-            onSelect={(emp) => { setSelectedEmployee(emp); setPage('employee-profile'); }} 
+            onSelect={(emp) => { setSelectedEmployeeId(emp.id); setPage('employee-profile'); }} 
             userRole={currentUser?.role || 'guest'}
           />
         )}
@@ -357,7 +360,8 @@ function App() {
             employee={selectedEmployee} 
             currentMonth={currentMonth} 
             config={config} 
-            onBack={() => setPage('employees')} 
+            onBack={() => setPage('employees')}
+            userRole={currentUser?.role || 'guest'}
           />
         )}
         {page === 'settings' && currentUser && (

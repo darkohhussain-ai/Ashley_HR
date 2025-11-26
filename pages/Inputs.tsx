@@ -65,6 +65,16 @@ export const InputPage: React.FC<InputPageProps> = ({ type, employees, currentMo
     setTimeout(() => setSaved(false), 2000);
   };
 
+  // Calculate summary for printing (Expenses)
+  const employeeSummary = useMemo(() => {
+    if (type !== 'expenses') return [];
+    const summary: Record<string, number> = {};
+    records.forEach(r => {
+      summary[r.employeeName] = (summary[r.employeeName] || 0) + (r.amount || 0);
+    });
+    return Object.entries(summary).map(([name, total]) => ({ name, total }));
+  }, [records, type]);
+
   const weeklyStats = useMemo(() => {
     if (type !== 'expenses') return [];
     
@@ -202,6 +212,33 @@ export const InputPage: React.FC<InputPageProps> = ({ type, employees, currentMo
                 ))}
               </tbody>
             </table>
+
+            {/* Print-only Expense Summary */}
+            {type === 'expenses' && (
+              <div className="hidden print:block mt-8 p-4 break-inside-avoid">
+                 <h4 className="font-bold text-lg mb-2 border-b border-black pb-1">پوختەی خەرجی کارمەندان</h4>
+                 <table className="w-full text-right text-sm border-collapse border border-black">
+                    <thead>
+                      <tr className="bg-gray-100">
+                         <th className="border border-black p-2">کارمەند</th>
+                         <th className="border border-black p-2 text-left">کۆی گشتی</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employeeSummary.map(item => (
+                        <tr key={item.name}>
+                           <td className="border border-black p-2">{item.name}</td>
+                           <td className="border border-black p-2 text-left font-mono dir-ltr">{item.total.toLocaleString()} IQD</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-50 font-bold">
+                         <td className="border border-black p-2">کۆی گشتی هەموو</td>
+                         <td className="border border-black p-2 text-left font-mono dir-ltr">{employeeSummary.reduce((a,b) => a+b.total, 0).toLocaleString()} IQD</td>
+                      </tr>
+                    </tbody>
+                 </table>
+              </div>
+            )}
           </div>
         </>
       ) : (

@@ -90,6 +90,12 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
     setSelectedDate(d.toISOString().split('T')[0]);
   };
 
+  const nextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
   const canEdit = (!isDayLocked || adminUnlock) && isAdmin;
 
   return (
@@ -112,10 +118,11 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
         </div>
         
         {viewMode === 'daily' ? (
-          <div className="flex items-center gap-3">
-            <button onClick={prevDay} className="p-2 rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 transition" title="ڕۆژی پێشوو">
-              <Icon name="caret-left" />
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={prevDay} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 transition text-sm font-bold">
+              <Icon name="caret-left" /> ڕۆژی پێشوو
             </button>
+            
             <div className="flex items-center gap-2 bg-gray-100 dark:bg-black/20 px-4 py-2 rounded-xl border border-gray-200 dark:border-dark-border">
               <span className="text-gray-500 text-sm">بەروار</span>
               <input 
@@ -125,6 +132,10 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
                 className="bg-transparent text-gray-900 dark:text-white font-bold outline-none cursor-pointer"
               />
             </div>
+
+            <button onClick={nextDay} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 transition text-sm font-bold">
+              ڕۆژی داهاتوو <Icon name="caret-right" />
+            </button>
           </div>
         ) : (
           <Button variant="secondary" onClick={() => window.print()}>
@@ -136,7 +147,7 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
       {/* VIEW 1: DAILY ENTRY */}
       {viewMode === 'daily' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="h-fit">
+          <Card className="h-fit no-print">
             <div className="font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-200 dark:border-dark-border pb-2 flex justify-between items-center">
               <span>زیادکردن - {selectedDate}</span>
               {isDayLocked && (
@@ -189,28 +200,32 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
           </Card>
 
           <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm">
-              <div className="p-4 font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-800/50">
+            {/* Controls for Print only */}
+            <div className="hidden print:flex justify-between items-center mb-4 border-b pb-2">
+               <h2 className="text-xl font-bold">راپۆرتی رۆژانە - {selectedDate}</h2>
+            </div>
+            <div className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm print:shadow-none print:border print:border-black">
+              <div className="p-4 font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-800/50 print:text-black print:bg-gray-100 border-b">
                 لیستی تۆمارکراوی ({selectedDate})
               </div>
               <table className="w-full text-right">
-                <thead className="bg-gray-100 dark:bg-slate-800 text-xs text-gray-500">
+                <thead className="bg-gray-100 dark:bg-slate-800 text-xs text-gray-500 print:bg-gray-200 print:text-black">
                   <tr>
                     <th className="p-4">کارمەند</th>
                     <th className="p-4">کاتژمێر</th>
                     <th className="p-4">تێبینی</th>
                     <th className="p-4">پارە</th>
-                    <th className="p-4 w-10"></th>
+                    <th className="p-4 w-10 no-print"></th>
                   </tr>
                 </thead>
-                <tbody className="text-sm text-gray-600 dark:text-gray-300 divide-y divide-gray-200 dark:divide-slate-700">
+                <tbody className="text-sm text-gray-600 dark:text-gray-300 divide-y divide-gray-200 dark:divide-slate-700 print:text-black print:divide-black">
                   {dailyList.map(r => (
                     <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
-                      <td className="p-4 font-bold text-gray-900 dark:text-white">{r.employeeName}</td>
+                      <td className="p-4 font-bold text-gray-900 dark:text-white print:text-black">{r.employeeName}</td>
                       <td className="p-4">{r.hours}</td>
                       <td className="p-4 text-xs opacity-70">{r.note || '-'}</td>
-                      <td className="p-4 text-[var(--brand-color)] font-bold dir-ltr font-mono">{r.pay.toLocaleString()} IQD</td>
-                      <td className="p-4">
+                      <td className="p-4 text-[var(--brand-color)] font-bold dir-ltr font-mono print:text-black">{r.pay.toLocaleString()} IQD</td>
+                      <td className="p-4 no-print">
                         {canEdit && (
                           <button onClick={() => deleteDoc(doc(db, 'overtime', r.id))} className="text-red-400 hover:text-red-500 transition">
                             <Icon name="trash" size={20} />
@@ -225,13 +240,13 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
                     </tr>
                   )}
                 </tbody>
-                <tfoot className="bg-gray-100 dark:bg-slate-800 font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-dark-border">
+                <tfoot className="bg-gray-100 dark:bg-slate-800 font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-dark-border print:text-black print:bg-gray-100 print:border-black">
                   <tr>
                     <td className="p-4">کۆی گشتی</td>
                     <td className="p-4">{dailyTotalHours}</td>
                     <td className="p-4"></td>
-                    <td className="p-4 text-[var(--brand-color)] dir-ltr font-mono">{dailyTotalPay.toLocaleString()} IQD</td>
-                    <td className="p-4"></td>
+                    <td className="p-4 text-[var(--brand-color)] dir-ltr font-mono print:text-black">{dailyTotalPay.toLocaleString()} IQD</td>
+                    <td className="p-4 no-print"></td>
                   </tr>
                 </tfoot>
               </table>

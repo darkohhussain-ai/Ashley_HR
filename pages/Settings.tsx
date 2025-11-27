@@ -32,8 +32,8 @@ export const SettingsPage: React.FC<SettingsProps> = ({ config, setConfig, admin
 
   useEffect(() => {
     if (isAdmin) {
-      const unsub = onSnapshot(collection(db, 'users'), (snap) => {
-        setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
+      const unsub = onSnapshot(collection(db, 'users'), (snap: any) => {
+        setUsers(snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as User)));
       });
       return () => unsub();
     }

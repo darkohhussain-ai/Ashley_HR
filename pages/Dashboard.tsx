@@ -24,10 +24,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentMonth, config }) =>
         getDocs(query(collection(db, 'deductions'), where('date', '>=', start), where('date', '<=', end)))
       ]);
 
-      const expenses = expSnap.docs.reduce((a, b) => a + (Number(b.data().amount) || 0), 0);
-      const overtimePay = otSnap.docs.reduce((a, b) => a + (Number(b.data().pay) || 0), 0);
+      const expenses = expSnap.docs.reduce((a, b) => a + (Number((b.data() as any).amount) || 0), 0);
+      const overtimePay = otSnap.docs.reduce((a, b) => a + (Number((b.data() as any).pay) || 0), 0);
       const loads = ldSnap.size * config.loadRate;
-      const withdrawals = dedSnap.docs.reduce((a, b) => a + (Number(b.data().amount) || 0), 0);
+      const withdrawals = dedSnap.docs.reduce((a, b) => a + (Number((b.data() as any).amount) || 0), 0);
 
       setStats({ expenses, overtimePay, loads, withdrawals });
     };

@@ -29,8 +29,8 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
     const end = currentMonth + '-31';
     const q = query(collection(db, 'overtime'), where('date', '>=', start), where('date', '<=', end));
     
-    const unsub = onSnapshot(q, (snap) => {
-      setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as OvertimeRecord)));
+    const unsub = onSnapshot(q, (snap: any) => {
+      setRecords(snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as OvertimeRecord)));
     });
     return () => unsub();
   }, [currentMonth]);
@@ -40,7 +40,7 @@ export const OvertimeSection: React.FC<OvertimeProps> = ({ employees, currentMon
     const checkLock = async () => {
       const docRef = doc(db, 'locked_days', selectedDate);
       const snap = await getDoc(docRef);
-      setIsDayLocked(snap.exists() ? snap.data().locked : false);
+      setIsDayLocked(snap.exists() ? (snap.data() as any).locked : false);
     };
     checkLock();
   }, [selectedDate]);

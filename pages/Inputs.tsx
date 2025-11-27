@@ -33,8 +33,8 @@ export const InputPage: React.FC<InputPageProps> = ({ type, employees, currentMo
       orderBy('date', 'desc')
     );
     
-    const unsub = onSnapshot(q, (snap) => {
-      setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
+    const unsub = onSnapshot(q, (snap: any) => {
+      setRecords(snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Transaction)));
     });
     return () => unsub();
   }, [type, currentMonth]);

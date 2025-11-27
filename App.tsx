@@ -85,8 +85,8 @@ function App() {
       // Load Employees
       // Request: Sort alphabetically (Arabic)
       const q = query(collection(db, 'employees'));
-      onSnapshot(q, (snap) => {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Employee));
+      onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Employee));
         // Sort by name using localeCompare for Arabic support
         list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
         setEmployees(list);
@@ -115,9 +115,16 @@ function App() {
         }
       } 
       
-      // Fallback: Master Admin (Accepts 'Darko' or 'darko')
-      if (!user && (loginForm.username === 'Darko' || loginForm.username === 'darko') && loginForm.password === '123456') {
-        user = { id: 'master', username: 'Darko', password: '', role: 'admin', createdAt: Date.now() };
+      // Fallback: Master Admins
+      if (!user) {
+        // Darko
+        if ((loginForm.username === 'Darko' || loginForm.username === 'darko') && loginForm.password === '123456') {
+          user = { id: 'master', username: 'Darko', password: '', role: 'admin', createdAt: Date.now() };
+        }
+        // Danar
+        else if (loginForm.username === 'danar' && loginForm.password === '11223344') {
+          user = { id: 'master_danar', username: 'Danar', password: '', role: 'admin', createdAt: Date.now() };
+        }
       }
 
       if (user) {
